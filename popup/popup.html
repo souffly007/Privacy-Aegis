@@ -1,0 +1,213 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <title>Privacy Aegis</title>
+  <link rel="stylesheet" href="popup.css">
+</head>
+<body>
+  <!-- Header -->
+  <div class="header">
+    <div class="logo" id="logo">🛡️</div>
+    <h1>Privacy Aegis</h1>
+    <div class="version">v2.0</div>
+  </div>
+  
+  <!-- Tabs -->
+  <div class="tabs">
+    <button class="tab active" data-tab="protection">🔒 Protection</button>
+    <button class="tab" data-tab="stats">📊 Stats</button>
+    <button class="tab" data-tab="whitelist">📋 Sites</button>
+  </div>
+  
+  <!-- Tab: Protection -->
+  <div class="tab-content active" id="tab-protection">
+    <!-- Current Site -->
+    <div class="current-site">
+      <div class="site-header">
+        <span class="site-name" id="siteName">Chargement...</span>
+        <span class="site-status protected" id="siteStatus">Protégé</span>
+      </div>
+      <div class="site-stats" id="siteStats">0 trackers bloqués sur ce site</div>
+      <div class="site-actions">
+        <button class="site-btn protect" id="protectBtn">🛡️ Protéger</button>
+        <button class="site-btn whitelist" id="whitelistBtn">⚪ Autoriser</button>
+        <button class="site-btn temp" id="tempBtn">⏰ Temp</button>
+      </div>
+    </div>
+    
+    <!-- Global Toggles -->
+    <div class="global-section">
+      <div class="toggle-row">
+        <span class="toggle-label">
+          <span class="toggle-icon">🌐</span> Protection globale
+        </span>
+        <label class="toggle-switch">
+          <input type="checkbox" id="toggleEnabled" checked>
+          <span class="toggle-slider"></span>
+        </label>
+      </div>
+      
+      <div class="toggle-row">
+        <span class="toggle-label">
+          <span class="toggle-icon">🎯</span> Trackers
+        </span>
+        <label class="toggle-switch">
+          <input type="checkbox" id="toggleTrackers" checked>
+          <span class="toggle-slider"></span>
+        </label>
+      </div>
+      
+      <div class="toggle-row">
+        <span class="toggle-label">
+          <span class="toggle-icon">🚫</span> Publicités
+        </span>
+        <label class="toggle-switch">
+          <input type="checkbox" id="toggleAds" checked>
+          <span class="toggle-slider"></span>
+        </label>
+      </div>
+      
+      <div class="toggle-row">
+        <span class="toggle-label">
+          <span class="toggle-icon">🍪</span> Cookies tiers
+        </span>
+        <label class="toggle-switch">
+          <input type="checkbox" id="toggleCookies" checked>
+          <span class="toggle-slider"></span>
+        </label>
+      </div>
+      
+      <div class="toggle-row">
+        <span class="toggle-label">
+          <span class="toggle-icon">🖥️</span> WebRTC (fuite IP)
+        </span>
+        <label class="toggle-switch">
+          <input type="checkbox" id="toggleWebRTC" checked>
+          <span class="toggle-slider"></span>
+        </label>
+      </div>
+      
+      <div class="toggle-row">
+        <span class="toggle-label">
+          <span class="toggle-icon">🎨</span> Fingerprinting
+        </span>
+        <label class="toggle-switch">
+          <input type="checkbox" id="toggleFingerprint" checked>
+          <span class="toggle-slider"></span>
+        </label>
+      </div>
+      
+      <div class="toggle-row">
+        <span class="toggle-label">
+          <span class="toggle-icon">🔗</span> Redirections
+        </span>
+        <label class="toggle-switch">
+          <input type="checkbox" id="toggleRedirects" checked>
+          <span class="toggle-slider"></span>
+        </label>
+      </div>
+      
+      <div class="toggle-row">
+        <span class="toggle-label">
+          <span class="toggle-icon">🔒</span> Forcer HTTPS
+        </span>
+        <label class="toggle-switch">
+          <input type="checkbox" id="toggleHTTPS" checked>
+          <span class="toggle-slider"></span>
+        </label>
+      </div>
+      
+      <div class="toggle-row">
+        <span class="toggle-label">
+          <span class="toggle-icon">🔔</span> Notifications
+        </span>
+        <label class="toggle-switch">
+          <input type="checkbox" id="toggleNotifications" checked>
+          <span class="toggle-slider"></span>
+        </label>
+      </div>
+    </div>
+    
+    <!-- Status -->
+    <div class="status-bar on" id="statusBar">🛡️ Protection active</div>
+  </div>
+  
+  <!-- Tab: Stats -->
+  <div class="tab-content" id="tab-stats">
+    <div class="stats-grid">
+      <div class="stat-card">
+        <div class="stat-number" id="statTotal">0</div>
+        <div class="stat-label">Total</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-number" id="statSession">0</div>
+        <div class="stat-label">Session</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-number" id="statTrackers">0</div>
+        <div class="stat-label">Trackers</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-number" id="statAds">0</div>
+        <div class="stat-label">Pubs</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-number" id="statCookies">0</div>
+        <div class="stat-label">Cookies</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-number" id="statHTTPS">0</div>
+        <div class="stat-label">HTTPS</div>
+      </div>
+    </div>
+    
+    <!-- Chart -->
+    <div class="stats-chart">
+      <div class="chart-title">Répartition des blocages</div>
+      <div class="chart-bars" id="chartBars">
+        <!-- Filled by JS -->
+      </div>
+    </div>
+    
+    <div class="footer-btns">
+      <button class="footer-btn" id="resetStats">🔄 Reset Stats</button>
+      <button class="footer-btn" id="exportData">📤 Exporter</button>
+      <button class="footer-btn" id="importData">📥 Importer</button>
+    </div>
+  </div>
+  
+  <!-- Tab: Whitelist -->
+  <div class="tab-content" id="tab-whitelist">
+    <div class="global-section">
+      <div style="font-size: 12px; color: #888; margin-bottom: 10px;">
+        Sites autorisés (pas de blocage)
+      </div>
+      <div class="whitelist-section" id="whitelistContainer">
+        <div class="whitelist-empty">Aucun site autorisé</div>
+      </div>
+    </div>
+    
+    <div class="footer-btns">
+      <button class="footer-btn" id="clearWhitelist">🗑️ Vider la liste</button>
+    </div>
+  </div>
+  
+  <!-- Modal for Temp Whitelist -->
+  <div class="modal" id="tempModal">
+    <div class="modal-content">
+      <div class="modal-title">⏰ Autorisation temporaire</div>
+      <input type="number" class="modal-input" id="tempMinutes" value="30" min="1" max="1440" placeholder="Minutes">
+      <div class="modal-btns">
+        <button class="modal-btn cancel" id="tempCancel">Annuler</button>
+        <button class="modal-btn confirm" id="tempConfirm">Confirmer</button>
+      </div>
+    </div>
+  </div>
+  
+  <!-- Hidden file input for import -->
+  <input type="file" id="importFile" accept=".json" style="display: none;">
+  
+  <script src="popup.js"></script>
+</body>
+</html>
