@@ -61,7 +61,13 @@ const TRACKERS = [
   "*://*.tapad.com/*",
   "*://*.rlcdn.com/*",
   "*://*.liveramp.com/*",
-  "*://*.eyeota.net/*"
+  "*://*.eyeota.net/*",
+  "*://*.matomo.org/*",
+  "*://*.piwik.pro/*",
+  "*://*.clicky.com/*",
+  "*://*.statcounter.com/*",
+  "*://*.inspectlet.com/*",
+  "*://*.luckyorange.com/*"
 ];
 
 const ADS = [
@@ -94,7 +100,14 @@ const ADS = [
   "*://*.applovin.com/*",
   "*://*.mopub.com/*",
   "*://*.inmobi.com/*",
-  "*://*.smaato.com/*"
+  "*://*.smaato.com/*",
+  "*://*.smartadserver.com/*",
+  "*://*.teads.tv/*",
+  "*://*.popads.net/*",
+  "*://*.popcash.net/*",
+  "*://*.propellerads.com/*",
+  "*://*.adform.net/*",
+  "*://*.yieldmo.com/*"
 ];
 
 const REDIRECT_TRACKERS = [
@@ -160,11 +173,42 @@ function getDomainFromUrl(url) {
   }
 }
 
+const SYSTEM_WHITELIST = [
+  'google.com',
+  'google.fr',
+  'youtube.com',
+  'gstatic.com',
+  'microsoft.com',
+  'microsoftonline.com',
+  'live.com',
+  'msauth.net',
+  'apple.com',
+  'appleid.apple.com',
+  'paypal.com',
+  'stripe.com',
+  'ameli.fr',
+  'impots.gouv.fr',
+  'boursorama.com',
+  'credit-agricole.fr',
+  'bnpparibas.fr',
+  'societegenerale.fr',
+  'labanquepostale.fr',
+  'cic.fr',
+  'creditmutuel.fr'
+];
+
 function isWhitelisted(url) {
   const hostname = getDomainFromUrl(url);
   if (!hostname) return false;
   
   const baseDomain = getBaseDomain(hostname);
+
+  // Vérifier whitelist système
+  const inSystemWhitelist = SYSTEM_WHITELIST.some(domain => {
+    return hostname === domain || hostname.endsWith('.' + domain) || baseDomain === domain;
+  });
+
+  if (inSystemWhitelist) return true;
   
   // Vérifier whitelist permanente
   const inWhitelist = settings.whitelist.some(domain => {

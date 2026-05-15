@@ -5,13 +5,63 @@
 
 (function() {
   'use strict';
+
+  const SYSTEM_WHITELIST = [
+    'google.com',
+    'google.fr',
+    'youtube.com',
+    'gstatic.com',
+    'microsoft.com',
+    'microsoftonline.com',
+    'live.com',
+    'msauth.net',
+    'apple.com',
+    'appleid.apple.com',
+    'paypal.com',
+    'stripe.com',
+    'ameli.fr',
+    'impots.gouv.fr',
+    'boursorama.com',
+    'credit-agricole.fr',
+    'bnpparibas.fr',
+    'societegenerale.fr',
+    'labanquepostale.fr',
+    'cic.fr',
+    'creditmutuel.fr'
+  ];
+
+  function getBaseDomain(hostname) {
+    const parts = hostname.split('.');
+    if (parts.length <= 2) return hostname;
+    const twoPartTlds = ['co.uk', 'com.br', 'com.au', 'co.jp', 'co.kr', 'com.mx', 'co.nz'];
+    const lastTwo = parts.slice(-2).join('.');
+    if (twoPartTlds.includes(lastTwo)) {
+      return parts.slice(-3).join('.');
+    }
+    return parts.slice(-2).join('.');
+  }
+
+  // Vérification synchrone rapide pour éviter la race condition
+  const hostname = window.location.hostname;
+  const baseDomain = getBaseDomain(hostname);
   
-  // Injecter le script directement dans la page pour bypasser l'isolation
+  if (SYSTEM_WHITELIST.some(domain => hostname === domain || hostname.endsWith('.' + domain) || baseDomain === domain)) {
+    console.log('🛡️ Privacy Aegis: Site système de confiance, protection désactivée pour ce domaine');
+    return;
+  }
+
+  // Injecter le script directement dans la page pour bypasser l'isolation (SYNCHRONE)
   const script = document.createElement('script');
   script.textContent = `
     (function() {
       'use strict';
       
+      // === ÉTAT ET RÉGLAGES (Asynchrone mais géré à l'intérieur de l'injecté pour éviter race condition sur l'injection elle-même) ===
+      let protectionActive = true;
+
+      // On pourrait envoyer un message au background pour récupérer l'état exact si nécessaire
+      // Mais pour la synchronicité, on injecte les fonctions et elles vérifient l'état.
+
       // === ANTI-CANVAS FINGERPRINT ===
       
       const originalToDataURL = HTMLCanvasElement.prototype.toDataURL;
