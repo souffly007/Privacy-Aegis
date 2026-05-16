@@ -291,6 +291,9 @@ function loadAll() {
   browser.storage.local.get(['settings', 'stats']).then(result => {
     if (result.settings) {
       settings = { ...settings, ...result.settings };
+    } else {
+      // Première fois : sauvegarder les réglages par défaut (activé par défaut)
+      saveSettings();
     }
     if (result.stats) {
       stats = { ...stats, ...result.stats };
@@ -585,6 +588,35 @@ setInterval(() => {
   if (changed) saveSettings();
 }, 60000); // Vérifier chaque minute
 
+// === MENU CONTEXTUEL ===
+
+function createContextMenu() {
+  browser.contextMenus.removeAll().then(() => {
+    browser.contextMenus.create({
+      id: "open-options",
+      title: "Options de Privacy Aegis",
+      contexts: ["browser_action"]
+    });
+
+    browser.contextMenus.create({
+      id: "view-stats",
+      title: "Voir les statistiques",
+      contexts: ["browser_action"]
+    });
+  });
+}
+
+browser.contextMenus.onClicked.addListener((info, tab) => {
+  if (info.menuItemId === "open-options") {
+    browser.runtime.openOptionsPage();
+  } else if (info.menuItemId === "view-stats") {
+    // Ouvrir les options sur l'onglet statistiques si possible,
+    // sinon juste ouvrir les options
+    browser.runtime.openOptionsPage();
+  }
+});
+
 // === INIT ===
 
 loadAll();
+createContextMenu();
