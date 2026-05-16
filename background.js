@@ -2,6 +2,8 @@
 // PRIVACY SHIELD PRO - Background Script Complet
 // ============================================================
 
+var browser = browser || chrome;
+
 // === ÉTAT GLOBAL ===
 let settings = {
   enabled: true,
@@ -249,21 +251,28 @@ function matchesPattern(url, patterns) {
 }
 
 function recordBlock(type, originUrl) {
-  stats.total++;
-  stats.session++;
-  stats[type] = (stats[type] || 0) + 1;
-  
-  // Stats par site
-  if (originUrl) {
-    const domain = getBaseDomain(getDomainFromUrl(originUrl) || 'unknown');
-    if (!stats.bySite[domain]) {
-      stats.bySite[domain] = { blocked: 0, types: {} };
+  try {
+    stats.total++;
+    stats.session++;
+    stats[type] = (stats[type] || 0) + 1;
+
+    // Stats par site
+    if (originUrl) {
+      const hostname = getDomainFromUrl(originUrl);
+      if (hostname) {
+        const domain = getBaseDomain(hostname);
+        if (!stats.bySite[domain]) {
+          stats.bySite[domain] = { blocked: 0, types: {} };
+        }
+        stats.bySite[domain].blocked++;
+        stats.bySite[domain].types[type] = (stats.bySite[domain].types[type] || 0) + 1;
+      }
     }
-    stats.bySite[domain].blocked++;
-    stats.bySite[domain].types[type] = (stats.bySite[domain].types[type] || 0) + 1;
+
+    saveStats();
+  } catch (e) {
+    console.error('🛡️ Erreur lors de l\'enregistrement des stats:', e);
   }
-  
-  saveStats();
 }
 
 function showNotification(title, message) {
@@ -295,11 +304,38 @@ function loadAll() {
       // Première fois : sauvegarder les réglages par défaut (activé par défaut)
       saveSettings();
     }
+
     if (result.stats) {
-      stats = { ...stats, ...result.stats };
+      const storedStats = result.stats;
+
+      // Fusionner les compteurs globaux (additionner)
+      stats.total += (storedStats.total || 0);
+      stats.trackers += (storedStats.trackers || 0);
+      stats.ads += (storedStats.ads || 0);
+      stats.cookies += (storedStats.cookies || 0);
+      stats.fingerprint += (storedStats.fingerprint || 0);
+      stats.redirects += (storedStats.redirects || 0);
+      stats.https += (storedStats.https || 0);
+
+      // Session est toujours à 0 au démarrage
       stats.session = 0;
+
+      // Fusionner bySite
+      if (storedStats.bySite) {
+        for (const domain in storedStats.bySite) {
+          if (!stats.bySite[domain]) {
+            stats.bySite[domain] = storedStats.bySite[domain];
+          } else {
+            stats.bySite[domain].blocked += storedStats.bySite[domain].blocked;
+            for (const type in storedStats.bySite[domain].types) {
+              stats.bySite[domain].types[type] = (stats.bySite[domain].types[type] || 0) +
+                                                storedStats.bySite[domain].types[type];
+            }
+          }
+        }
+      }
     }
-    console.log('🛡️ Privacy Aegis chargé');
+    console.log('🛡️ Privacy Aegis chargé avec succès');
   });
 }
 

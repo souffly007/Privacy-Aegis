@@ -2,6 +2,8 @@
 // PRIVACY SHIELD PRO - Popup Script (Version sécurisée)
 // ============================================================
 
+var browser = browser || chrome;
+
 // === ÉLÉMENTS DOM ===
 const $ = id => document.getElementById(id);
 
@@ -62,6 +64,11 @@ function formatNumber(num) {
 function getBaseDomain(hostname) {
   const parts = hostname.split('.');
   if (parts.length <= 2) return hostname;
+  const twoPartTlds = ['co.uk', 'com.br', 'com.au', 'co.jp', 'co.kr', 'com.mx', 'co.nz'];
+  const lastTwo = parts.slice(-2).join('.');
+  if (twoPartTlds.includes(lastTwo)) {
+    return parts.slice(-3).join('.');
+  }
   return parts.slice(-2).join('.');
 }
 
@@ -101,9 +108,12 @@ document.querySelectorAll('.tab').forEach(tab => {
 // === CHARGER L'ÉTAT ===
 
 async function loadState() {
-  const response = await browser.runtime.sendMessage({ action: 'getState' });
-  currentSettings = response.settings;
-  currentStats = response.stats;
+  try {
+    const response = await browser.runtime.sendMessage({ action: 'getState' });
+    if (!response) return;
+
+    currentSettings = response.settings || {};
+    currentStats = response.stats || {};
   
   // Mettre à jour les toggles
   elements.toggleEnabled.checked = currentSettings.enabled;
@@ -178,8 +188,11 @@ async function loadState() {
     elements.siteStats.textContent = '';
   }
   
-  // Whitelist
-  updateWhitelistUI();
+    // Whitelist
+    updateWhitelistUI();
+  } catch (e) {
+    console.error('🛡️ Erreur lors du chargement de l\'état du popup:', e);
+  }
 }
 
 function updateChart() {

@@ -3,6 +3,8 @@
 // S'exécute AVANT les scripts de la page
 // ============================================================
 
+var browser = browser || chrome;
+
 (function() {
   'use strict';
 

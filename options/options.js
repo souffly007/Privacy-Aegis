@@ -2,6 +2,8 @@
 // PRIVACY SHIELD PRO - Options Script (Version sécurisée)
 // ============================================================
 
+var browser = browser || chrome;
+
 const $ = id => document.getElementById(id);
 
 let currentSettings = {};
