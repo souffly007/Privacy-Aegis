@@ -4,6 +4,26 @@
 
 var browser = browser || chrome;
 
+// Polyfill pour les navigateurs basés sur Chromium (Brave, Chrome)
+if (!browser.storage.local.get.then) {
+  const wrap = (fn) => (...args) => new Promise((resolve, reject) => {
+    fn(...args, (result) => {
+      if (chrome.runtime.lastError) reject(chrome.runtime.lastError);
+      else resolve(result);
+    });
+  });
+
+  const storageGet = browser.storage.local.get.bind(browser.storage.local);
+  const storageSet = browser.storage.local.set.bind(browser.storage.local);
+  browser.storage.local.get = wrap(storageGet);
+  browser.storage.local.set = wrap(storageSet);
+
+  if (browser.contextMenus && browser.contextMenus.removeAll) {
+    const removeAll = browser.contextMenus.removeAll.bind(browser.contextMenus);
+    browser.contextMenus.removeAll = () => new Promise((resolve) => removeAll(resolve));
+  }
+}
+
 // === ÉTAT GLOBAL ===
 let settings = {
   enabled: true,
@@ -257,18 +277,19 @@ function recordBlock(type, originUrl) {
     stats[type] = (stats[type] || 0) + 1;
 
     // Stats par site
-    if (originUrl) {
-      const hostname = getDomainFromUrl(originUrl);
-      if (hostname) {
-        const domain = getBaseDomain(hostname);
-        if (!stats.bySite[domain]) {
-          stats.bySite[domain] = { blocked: 0, types: {} };
-        }
-        stats.bySite[domain].blocked++;
-        stats.bySite[domain].types[type] = (stats.bySite[domain].types[type] || 0) + 1;
+    const targetUrl = originUrl || 'unknown';
+    const hostname = getDomainFromUrl(targetUrl) || (targetUrl !== 'unknown' ? targetUrl : null);
+
+    if (hostname) {
+      const domain = getBaseDomain(hostname);
+      if (!stats.bySite[domain]) {
+        stats.bySite[domain] = { blocked: 0, types: {} };
       }
+      stats.bySite[domain].blocked++;
+      stats.bySite[domain].types[type] = (stats.bySite[domain].types[type] || 0) + 1;
     }
 
+    console.log(`🛡️ [${type}] Stats mises à jour. Total: ${stats.total}`);
     saveStats();
   } catch (e) {
     console.error('🛡️ Erreur lors de l\'enregistrement des stats:', e);

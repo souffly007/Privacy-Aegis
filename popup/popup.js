@@ -4,6 +4,18 @@
 
 var browser = browser || chrome;
 
+// Polyfill pour Brave/Chromium
+if (typeof browser.runtime.sendMessage.then !== 'function') {
+  const wrap = (fn) => (...args) => new Promise((resolve, reject) => {
+    fn(...args, (result) => {
+      if (chrome.runtime.lastError) reject(chrome.runtime.lastError);
+      else resolve(result);
+    });
+  });
+  browser.runtime.sendMessage = wrap(browser.runtime.sendMessage.bind(browser.runtime));
+  browser.tabs.query = wrap(browser.tabs.query.bind(browser.tabs));
+}
+
 // === ÉLÉMENTS DOM ===
 const $ = id => document.getElementById(id);
 
