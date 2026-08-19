@@ -233,6 +233,31 @@ function isWhitelisted(url) {
   return false;
 }
 
+// Détermine si une requête ne doit PAS subir le traitement "tiers"
+// (suppression de cookies / Set-Cookie), même si origine et destination diffèrent.
+// Corrige deux faux positifs fréquents :
+//   1. Navigations principales / popups (type main_frame, sub_frame) : ce sont
+//      des redirections OAuth (ex: connexion Google) et pas des trackers tiers.
+//      Supprimer leurs cookies casse le flow de login (boucle infinie, échec silencieux).
+//   2. Le domaine de DESTINATION est whitelisté (système ou utilisateur), pas
+//      seulement l'origine. Avant, google.com était dans SYSTEM_WHITELIST mais
+//      n'était jamais vérifié côté destination, donc jamais réellement protégé
+//      pendant un flow d'auth déclenché depuis un site tiers.
+function isThirdPartyExempt(details, requestUrl, originUrl) {
+  // Navigation de premier niveau ou popup (ex: fenêtre "Se connecter avec Google")
+  if (details.type === 'main_frame' || details.type === 'sub_frame') {
+    return true;
+  }
+
+  // Destination whitelistée (système ou utilisateur) : ex. accounts.google.com,
+  // appleid.apple.com, ou un site que l'utilisateur a explicitement autorisé
+  if (isWhitelisted(requestUrl)) {
+    return true;
+  }
+
+  return false;
+}
+
 function matchesPattern(url, patterns) {
   for (const pattern of patterns) {
     const regexStr = '^' + pattern
@@ -413,6 +438,7 @@ browser.webRequest.onBeforeSendHeaders.addListener(
     
     const originUrl = details.originUrl || details.documentUrl;
     if (originUrl && isWhitelisted(originUrl)) return {};
+    if (isThirdPartyExempt(details, details.url, originUrl)) return {};
     
     // Vérifier si c'est une requête tierce
     const requestDomain = getDomainFromUrl(details.url);
@@ -444,6 +470,7 @@ browser.webRequest.onHeadersReceived.addListener(
     
     const originUrl = details.originUrl || details.documentUrl;
     if (originUrl && isWhitelisted(originUrl)) return {};
+    if (isThirdPartyExempt(details, details.url, originUrl)) return {};
     
     const requestDomain = getDomainFromUrl(details.url);
     const originDomain = getDomainFromUrl(originUrl || '');
