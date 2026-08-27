@@ -4,7 +4,7 @@
   "version": "2.0.0",
   "description": "Protection complète contre le tracking, fingerprinting, publicités. Bloque les trackers, cookies tiers, WebRTC et plus.",
   "author": "souffly007",
-  "homepage_url": "https://github.com/souffly007/privacy-shield-pro",
+  "homepage_url": "https://github.com/souffly007/Privacy-Aegis",
 
   "browser_specific_settings": {
     "gecko": {
