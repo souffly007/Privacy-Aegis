@@ -3,6 +3,8 @@
 // ============================================================
 
 // === ÉTAT GLOBAL ===
+let settingsReady = false;
+
 let settings = {
   enabled: true,
   blockTrackers: true,
@@ -197,42 +199,41 @@ const SYSTEM_WHITELIST = [
   'creditmutuel.fr'
 ];
 
+function normalizeDomain(domain) {
+  return String(domain || '')
+    .trim()
+    .toLowerCase()
+    .replace(/^https?:\/\//, '')
+    .split('/')[0]
+    .replace(/:\d+$/, '');
+}
+
+function domainMatches(hostname, configuredDomain) {
+  const host = normalizeDomain(hostname);
+  const domain = normalizeDomain(configuredDomain);
+  return Boolean(host && domain && (host === domain || host.endsWith('.' + domain)));
+}
+
 function isWhitelisted(url) {
   const hostname = getDomainFromUrl(url);
   if (!hostname) return false;
-  
-  const baseDomain = getBaseDomain(hostname);
 
-  // Vérifier whitelist système
-  const inSystemWhitelist = SYSTEM_WHITELIST.some(domain => {
-    return hostname === domain || hostname.endsWith('.' + domain) || baseDomain === domain;
-  });
+  if (SYSTEM_WHITELIST.some(domain => domainMatches(hostname, domain))) return true;
 
-  if (inSystemWhitelist) return true;
-  
-  // Vérifier whitelist permanente
-  const inWhitelist = settings.whitelist.some(domain => {
-    const wlBase = getBaseDomain(domain);
-    return hostname === domain || hostname.endsWith('.' + domain) || baseDomain === wlBase;
-  });
-  
-  if (inWhitelist) return true;
-  
-  // Vérifier whitelist temporaire
-  const tempExpiration = settings.tempWhitelist[baseDomain];
-  if (tempExpiration) {
-    if (Date.now() < tempExpiration) {
-      return true;
-    } else {
-      // Expiré, supprimer
-      delete settings.tempWhitelist[baseDomain];
-      saveSettings();
-    }
+  if ((settings.whitelist || []).some(domain => domainMatches(hostname, domain))) {
+    return true;
   }
-  
+
+  const tempDomain = Object.keys(settings.tempWhitelist || {}).find(domain =>
+    domainMatches(hostname, domain)
+  );
+  if (tempDomain) {
+    if (Date.now() < settings.tempWhitelist[tempDomain]) return true;
+    delete settings.tempWhitelist[tempDomain];
+    saveSettings();
+  }
   return false;
 }
-
 // Détermine si une requête ne doit PAS subir le traitement "tiers"
 // (suppression de cookies / Set-Cookie), même si origine et destination diffèrent.
 // Corrige deux faux positifs fréquents :
@@ -313,23 +314,24 @@ function saveStats() {
 }
 
 function loadAll() {
-  browser.storage.local.get(['settings', 'stats']).then(result => {
-    if (result.settings) {
-      settings = { ...settings, ...result.settings };
-    }
-    if (result.stats) {
-      stats = { ...stats, ...result.stats };
-      stats.session = 0;
-    }
-    console.log('🛡️ Privacy Aegis chargé');
-  });
+  return browser.storage.local.get(['settings', 'stats'])
+    .then(result => {
+      if (result.settings) settings = { ...settings, ...result.settings };
+      if (result.stats) {
+        stats = { ...stats, ...result.stats };
+        stats.session = 0;
+      }
+      console.log('🛡️ Privacy Aegis chargé');
+    })
+    .catch(error => console.error('🛡️ Impossible de charger les réglages :', error))
+    .finally(() => { settingsReady = true; });
 }
 
 // === BLOCAGE PRINCIPAL ===
 
 browser.webRequest.onBeforeRequest.addListener(
   function(details) {
-    if (!settings.enabled) return { cancel: false };
+    if (!settingsReady || !settings.enabled) return { cancel: false };
     
     const url = details.url;
     const originUrl = details.originUrl || details.documentUrl;
@@ -409,7 +411,7 @@ browser.webRequest.onBeforeRequest.addListener(
 
 browser.webRequest.onBeforeRequest.addListener(
   function(details) {
-    if (!settings.enabled || !settings.forceHTTPS) return {};
+    if (!settingsReady || !settings.enabled || !settings.forceHTTPS) return {};
     
     const url = details.url;
     if (url.startsWith('http://')) {
@@ -434,7 +436,7 @@ browser.webRequest.onBeforeRequest.addListener(
 
 browser.webRequest.onBeforeSendHeaders.addListener(
   function(details) {
-    if (!settings.enabled || !settings.blockCookies) return {};
+    if (!settingsReady || !settings.enabled || !settings.blockCookies) return {};
     
     const originUrl = details.originUrl || details.documentUrl;
     if (originUrl && isWhitelisted(originUrl)) return {};
@@ -466,7 +468,7 @@ browser.webRequest.onBeforeSendHeaders.addListener(
 
 browser.webRequest.onHeadersReceived.addListener(
   function(details) {
-    if (!settings.enabled || !settings.blockCookies) return {};
+    if (!settingsReady || !settings.enabled || !settings.blockCookies) return {};
     
     const originUrl = details.originUrl || details.documentUrl;
     if (originUrl && isWhitelisted(originUrl)) return {};
@@ -518,6 +520,10 @@ browser.storage.onChanged.addListener((changes, area) => {
 
 browser.runtime.onMessage.addListener((message, sender, sendResponse) => {
   switch (message.action) {
+    case 'isWhitelisted':
+      sendResponse({ whitelisted: isWhitelisted(message.url) });
+      break;
+
     case 'getState':
       sendResponse({ settings, stats });
       break;
@@ -528,28 +534,36 @@ browser.runtime.onMessage.addListener((message, sender, sendResponse) => {
       sendResponse({ success: true });
       break;
       
-    case 'addToWhitelist':
-      if (!settings.whitelist.includes(message.domain)) {
-        settings.whitelist.push(message.domain);
+    case 'addToWhitelist': {
+      const domain = normalizeDomain(message.domain);
+      if (domain && !settings.whitelist.includes(domain)) {
+        settings.whitelist.push(domain);
         saveSettings();
       }
       sendResponse({ success: true });
       break;
+    }
       
-    case 'removeFromWhitelist':
-      settings.whitelist = settings.whitelist.filter(d => d !== message.domain);
+    case 'removeFromWhitelist': {
+      const domain = normalizeDomain(message.domain);
+      settings.whitelist = settings.whitelist.filter(d => d !== domain);
       saveSettings();
       sendResponse({ success: true });
       break;
+    }
       
-    case 'addTempWhitelist':
+    case 'addTempWhitelist': {
+      const domain = normalizeDomain(message.domain);
       const duration = message.minutes * 60 * 1000;
-      settings.tempWhitelist[message.domain] = Date.now() + duration;
-      saveSettings();
-      showNotification('Privacy Shield', `${message.domain} autorisé pour ${message.minutes} minutes`);
+      if (domain) {
+        settings.tempWhitelist[domain] = Date.now() + duration;
+        saveSettings();
+        showNotification('Privacy Shield', domain + ' autorisé pour ' + message.minutes + ' minutes');
+      }
       sendResponse({ success: true });
       break;
-      
+    }
+
     case 'resetStats':
       stats = {
         total: 0,
