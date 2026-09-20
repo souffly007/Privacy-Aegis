@@ -65,6 +65,15 @@ function getBaseDomain(hostname) {
   return parts.slice(-2).join('.');
 }
 
+function domainMatches(hostname, configuredDomain) {
+  const host = String(hostname || '').toLowerCase();
+  const domain = String(configuredDomain || '').toLowerCase()
+    .replace(/^https?:\/\//, '')
+    .split('/')[0]
+    .replace(/:\d+$/, '');
+  return Boolean(host && domain && (host === domain || host.endsWith('.' + domain)));
+}
+
 async function getCurrentDomain() {
   try {
     const tabs = await browser.tabs.query({ active: true, currentWindow: true });
@@ -144,8 +153,8 @@ async function loadState() {
   if (currentDomain) {
     elements.siteName.textContent = currentDomain;
     
-    const isWhitelisted = currentSettings.whitelist.includes(currentDomain) ||
-                          currentSettings.whitelist.includes(getBaseDomain(currentDomain));
+    const isWhitelisted = (currentSettings.whitelist || [])
+      .some(domain => domainMatches(currentDomain, domain));
     
     const baseDomain = getBaseDomain(currentDomain);
     const isTempWhitelisted = currentSettings.tempWhitelist && 
@@ -338,7 +347,7 @@ elements.protectBtn.addEventListener('click', async () => {
 
 elements.whitelistBtn.addEventListener('click', async () => {
   if (currentDomain) {
-    await browser.runtime.sendMessage({ action: 'addToWhitelist', domain: getBaseDomain(currentDomain) });
+    await browser.runtime.sendMessage({ action: 'addToWhitelist', domain: currentDomain });
     loadState();
   }
 });
@@ -358,7 +367,7 @@ elements.tempConfirm.addEventListener('click', async () => {
   const minutes = parseInt(elements.tempMinutes.value) || 30;
   await browser.runtime.sendMessage({ 
     action: 'addTempWhitelist', 
-    domain: getBaseDomain(currentDomain),
+    domain: currentDomain,
     minutes 
   });
   elements.tempModal.classList.remove('active');
