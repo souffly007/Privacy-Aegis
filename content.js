@@ -6,6 +6,14 @@
 (function() {
   'use strict';
 
+  browser.runtime.sendMessage({ action: 'isWhitelisted', url: location.href })
+    .then(result => {
+      if (!result || !result.whitelisted) runProtection();
+    })
+    .catch(() => runProtection());
+
+  function runProtection() {
+
   const SYSTEM_WHITELIST = [
     'google.com',
     'google.fr',
@@ -384,4 +392,5 @@
   (document.head || document.documentElement).prepend(script);
   script.remove();
   
+  }
 })();
